@@ -1,0 +1,9 @@
+.venv/
+.env
+.DS_Store
+__pycache__/
+*.py[cod]
+data/image_verification/generated/
+outputs/image_verification/*.jsonl
+outputs/image_verification/*_checkpoint*.json
+outputs/image_verification/reward_model/
