@@ -1,0 +1,16 @@
+{
+  "name": "VerifiedGen-India Sarvam Track",
+  "target_prompt_count": 85,
+  "tracks": {
+    "indic_script_rendering": 45,
+    "code_mixed_signage": 10,
+    "regional_agriculture": 10,
+    "regional_governance": 10,
+    "cultural_context": 10
+  },
+  "languages": ["Hindi", "Tamil", "Telugu", "Bengali", "Kannada", "Malayalam", "Marathi", "Gujarati", "Punjabi"],
+  "candidates_per_prompt_per_generator": 4,
+  "generators": ["sdxl", "flux"],
+  "target_images": 680,
+  "metrics": ["ocr_exact_match", "character_error_rate", "false_accept_rate", "false_reject_rate", "human_preference_agreement", "safety_recall"]
+}

@@ -1,0 +1,10 @@
+{
+  "project_name": "VerifiedGen-India",
+  "dataset_name": "GenFailBench-India",
+  "prompt_bank": "data/image_verification/india_prompt_bank_v1.jsonl",
+  "sarvam_track_prompts": 85,
+  "pilot_images": 200,
+  "generators": 2,
+  "images_per_prompt": 4,
+  "thresholds": {"pass_threshold": 0.72, "fail_threshold": 0.42, "min_quality": 0.45, "min_alignment": 0.55, "min_text_score": 0.7, "min_cultural_score": 0.6, "min_dimension": 256}
+}

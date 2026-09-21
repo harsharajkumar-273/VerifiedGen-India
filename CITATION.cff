@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "VerifiedGen-India: Multi-Axis Verification for India-Centric Text-to-Image Generation"
+message: "If you use this software or benchmark, please cite it."
+type: software
+authors:
+  - family-names: "Kumar"
+    given-names: "Harsha Raj"
+year: 2026
+abstract: "A verification-first framework for evaluating India-centric text-to-image generations."
