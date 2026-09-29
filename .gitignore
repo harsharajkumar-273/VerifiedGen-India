@@ -7,3 +7,6 @@ data/image_verification/generated/
 outputs/image_verification/*.jsonl
 outputs/image_verification/*_checkpoint*.json
 outputs/image_verification/reward_model/
+outputs/study/
+data/image_verification/annotation/
+*.key.json

@@ -1,8 +1,11 @@
+# Core: prompt bank, verifier, annotation and the study analysis
+numpy
 Pillow
+
+# Optional: CLIPScore evaluator, reward-model training, local generation
 torch
-diffusers
 transformers
+diffusers
 accelerate
 safetensors
 sentencepiece
-

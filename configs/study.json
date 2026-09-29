@@ -1,0 +1,18 @@
+{
+  "study": {
+    "bootstrap_samples": 2000,
+    "seed": 0,
+    "alpha": 0.05,
+    "target_true_accept_rate": 0.8,
+    "min_group_size": 10
+  },
+  "design": {
+    "prompt_bank": "data/image_verification/matched_prompt_bank_v1.jsonl",
+    "generators": ["sdxl", "flux"],
+    "images_per_prompt": 4,
+    "annotators_per_image": 3,
+    "primary_evaluators": ["clipscore", "vqascore", "vlm_judge", "verifiedgen"],
+    "control_evaluators": ["random", "image_stats"],
+    "primary_metric": "H1_auroc_gap_pooled"
+  }
+}

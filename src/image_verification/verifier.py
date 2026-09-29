@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict, Iterable, List, Tuple
 
 from src.image_verification.image_features import color_coverage, compute_image_features
+from src.image_verification.language_metrics import normalize_text
 from src.image_verification.prompt_parser import COLOR_RGB, extract_prompt_requirements, normalize_label
 from src.image_verification.schema import AxisScore, Detection, ImageCandidate, ImageVerificationReport
 from src.image_verification.safety import safety_gate
@@ -22,6 +23,10 @@ class ThresholdConfig:
     color_presence_threshold: float = 0.12
     min_dimension: int = 256
     max_artifact_risk: float = 0.55
+    # When True, an object requirement with no detector output blocks a
+    # "pass" (the image goes to review). Unverified objects never enter the
+    # score itself, so they cannot drag every candidate towards 0.5.
+    require_object_evidence: bool = True
 
 
 def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -92,7 +97,6 @@ def _score_prompt_alignment(candidate: ImageCandidate, image: Any, config: Thres
         actual = detected.get(normalized)
         if actual is None:
             notes.append(f"Needs detector evidence for object: {label}.")
-            scores.append(0.5)
         else:
             scores.append(1.0 if actual >= expected_count else _clip(actual / expected_count))
             if actual < expected_count:
@@ -107,10 +111,11 @@ def _score_prompt_alignment(candidate: ImageCandidate, image: Any, config: Thres
 
     if not scores:
         scores.append(0.5)
-        notes.append("No explicit color or object requirements were extracted from the prompt.")
+        if not requirements.objects:
+            notes.append("No explicit color or object requirements were extracted from the prompt.")
 
     score = sum(scores) / len(scores)
-    unresolved = any(note.startswith("Needs detector") for note in notes)
+    unresolved = config.require_object_evidence and any(note.startswith("Needs detector") for note in notes)
     passed = score >= config.min_alignment and not unresolved
     return _axis("prompt_alignment", score, passed, notes), notes
 
@@ -128,8 +133,8 @@ def _score_text_rendering(candidate: ImageCandidate, config: ThresholdConfig) ->
     expected, observed = _text_values(candidate)
     if not expected:
         return None
-    normalized_observed = observed.casefold()
-    matches = sum(1 for value in expected if value.casefold() in normalized_observed)
+    normalized_observed = normalize_text(observed)
+    matches = sum(1 for value in expected if normalize_text(value) in normalized_observed)
     score = matches / len(expected)
     notes = [] if matches == len(expected) else ["Expected text was not fully recovered by OCR."]
     return _axis("text_rendering", score, score >= config.min_text_score, notes)
