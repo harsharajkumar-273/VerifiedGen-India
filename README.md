@@ -47,6 +47,17 @@ python3 scripts/run_study.py --manifest data/image_verification/study_manifest.j
 
 The first grounded external-validation track uses AIKosh agriculture resources to define and validate India-specific agriculture prompts. AIKosh data is not automatically downloaded; access and licensing must be checked before using or redistributing any source data.
 
+## Glyph minimal pairs: do evaluators read Indic scripts?
+
+The main experiment now in progress. Correct sign text is rendered with fonts next to an otherwise identical image containing one controlled error, such as a dropped matra, a lookalike letter, unshaped conjuncts, or a neighbouring script. Ground truth therefore comes from how each pair is built. Every pair is also scored with a *mirrored* prompt, so evaluators that ignore the prompt score exactly 0.5. The design is described in [`docs/GLYPH_PAIRS.md`](docs/GLYPH_PAIRS.md) and positioned against prior work in [`docs/LITERATURE_SURVEY.md`](docs/LITERATURE_SURVEY.md).
+
+```bash
+python3 scripts/build_glyph_pairs.py fetch-fonts
+python3 scripts/build_glyph_pairs.py build --out-dir outputs/glyph_pairs/pilot
+python3 scripts/score_images.py --manifest outputs/glyph_pairs/pilot/candidates.jsonl --evaluators random image_stats --output-dir outputs/glyph_pairs/pilot/scores
+python3 scripts/analyze_glyph_pairs.py --pairs outputs/glyph_pairs/pilot/pairs.jsonl --scores outputs/glyph_pairs/pilot/scores/*.jsonl --output-dir outputs/glyph_pairs/pilot/results
+```
+
 ## The VerifiedGen verifier
 
 ```text
@@ -149,7 +160,8 @@ python3 scripts/train_preference_model.py train \
 ## Run tests
 
 ```bash
-pip install numpy Pillow
+pip install numpy Pillow fonttools
+python3 scripts/build_glyph_pairs.py fetch-fonts   # optional: enables the rendering tests
 python3 -m unittest discover -s tests
 ```
 
@@ -162,6 +174,8 @@ Study:
 - `src/image_verification/human_labels.py`: blinded task export, label aggregation, inter-annotator agreement and human ceiling
 - `src/image_verification/study.py`: pre-specified analysis and Markdown report
 - `src/image_verification/selection.py`: best-of-N selection analysis
+- `src/image_verification/glyph_pairs.py`: glyph minimal-pair generator (error types, shaping-aware rendering, prompt mirroring)
+- `src/image_verification/glyph_eval.py`: forward / mirrored / reading accuracy and the Latin-vs-Indic gap
 - `src/image_verification/stats.py`: AUROC, Spearman, calibrated false-accept rate, Krippendorff's alpha, cluster bootstrap, Holm correction
 
 Verifier and tooling:

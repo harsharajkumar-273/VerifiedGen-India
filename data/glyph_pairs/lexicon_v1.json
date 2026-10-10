@@ -1,0 +1,25 @@
+{
+  "version": "lexicon_v1",
+  "status": "pending native-reader check: every Indic spelling and romanisation must be confirmed by a native reader before the benchmark is frozen",
+  "notes": "Shop-sign and public-sign words, aligned by concept across scripts. Romanisations are informal, as they would appear on a sign; they are used only for the 'transliterated' error type.",
+  "concepts": [
+    {"concept": "milk", "latn": "MILK", "deva": "दूध", "deva_roman": "DOODH", "knda": "ಹಾಲು", "knda_roman": "HAALU", "taml": "பால்", "taml_roman": "PAAL"},
+    {"concept": "fruits", "latn": "FRUITS", "deva": "फल", "deva_roman": "PHAL", "knda": "ಹಣ್ಣು", "knda_roman": "HANNU", "taml": "பழம்", "taml_roman": "PAZHAM"},
+    {"concept": "medicine", "latn": "MEDICINES", "deva": "दवाई", "deva_roman": "DAVAAI", "knda": "ಔಷಧಿ", "knda_roman": "AUSHADHI", "taml": "மருந்து", "taml_roman": "MARUNDHU"},
+    {"concept": "store", "latn": "STORE", "deva": "किराना", "deva_roman": "KIRAANA", "knda": "ಅಂಗಡಿ", "knda_roman": "ANGADI", "taml": "கடை", "taml_roman": "KADAI"},
+    {"concept": "hospital", "latn": "HOSPITAL", "deva": "अस्पताल", "deva_roman": "ASPATAAL", "knda": "ಆಸ್ಪತ್ರೆ", "knda_roman": "AASPATRE", "taml": "மருத்துவமனை", "taml_roman": "MARUTHUVAMANAI"},
+    {"concept": "school", "latn": "SCHOOL", "deva": "विद्यालय", "deva_roman": "VIDYAALAY", "knda": "ಶಾಲೆ", "knda_roman": "SHAALE", "taml": "பள்ளி", "taml_roman": "PALLI"},
+    {"concept": "bank", "latn": "BANK", "deva": "बैंक", "deva_roman": "BAINK", "knda": "ಬ್ಯಾಂಕ್", "knda_roman": "BYAANK", "taml": "வங்கி", "taml_roman": "VANGI"},
+    {"concept": "restaurant", "latn": "RESTAURANT", "deva": "भोजनालय", "deva_roman": "BHOJANAALAY", "knda": "ಹೋಟೆಲ್", "knda_roman": "HOTEL", "taml": "உணவகம்", "taml_roman": "UNAVAGAM"},
+    {"concept": "vegetables", "latn": "VEGETABLES", "deva": "सब्जी", "deva_roman": "SABJI", "knda": "ತರಕಾರಿ", "knda_roman": "TARAKAARI", "taml": "காய்கறி", "taml_roman": "KAAYKARI"},
+    {"concept": "books", "latn": "BOOKS", "deva": "किताबें", "deva_roman": "KITAABEN", "knda": "ಪುಸ್ತಕ", "knda_roman": "PUSTAKA", "taml": "புத்தகம்", "taml_roman": "PUTHTHAGAM"},
+    {"concept": "water", "latn": "WATER", "deva": "पानी", "deva_roman": "PAANI", "knda": "ನೀರು", "knda_roman": "NEERU", "taml": "தண்ணீர்", "taml_roman": "THANNEER"},
+    {"concept": "tea", "latn": "TEA", "deva": "चाय", "deva_roman": "CHAAY", "knda": "ಚಹಾ", "knda_roman": "CHAHAA", "taml": "தேநீர்", "taml_roman": "THENEER"},
+    {"concept": "sweets", "latn": "SWEETS", "deva": "मिठाई", "deva_roman": "MITHAAI", "knda": "ಸಿಹಿತಿಂಡಿ", "knda_roman": "SIHITINDI", "taml": "இனிப்பு", "taml_roman": "INIPPU"},
+    {"concept": "post_office", "latn": "POST OFFICE", "deva": "डाकघर", "deva_roman": "DAAKGHAR", "knda": "ಅಂಚೆ ಕಚೇರಿ", "knda_roman": "ANCHE KACHERI", "taml": "அஞ்சல் நிலையம்", "taml_roman": "ANJAL NILAIYAM"},
+    {"concept": "clothes", "latn": "CLOTHES", "deva": "कपड़े", "deva_roman": "KAPDE", "knda": "ಬಟ್ಟೆ", "knda_roman": "BATTE", "taml": "துணி", "taml_roman": "THUNI"},
+    {"concept": "temple", "latn": "TEMPLE", "deva": "मंदिर", "deva_roman": "MANDIR", "knda": "ದೇವಸ್ಥಾನ", "knda_roman": "DEVASTHAANA", "taml": "கோயில்", "taml_roman": "KOYIL"},
+    {"concept": "bus_stop", "latn": "BUS STOP", "deva": "बस स्टॉप", "deva_roman": "BUS STOP", "knda": "ಬಸ್ ನಿಲ್ದಾಣ", "knda_roman": "BUS NILDAANA", "taml": "பேருந்து நிறுத்தம்", "taml_roman": "PERUNDHU NIRUTHTHAM"},
+    {"concept": "welcome", "latn": "WELCOME", "deva": "स्वागत", "deva_roman": "SWAAGAT", "knda": "ಸ್ವಾಗತ", "knda_roman": "SWAAGATA", "taml": "வரவேற்பு", "taml_roman": "VARAVERPU"}
+  ]
+}
