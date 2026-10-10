@@ -131,3 +131,103 @@ class GlyphEvalTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ToolingTest(unittest.TestCase):
+    def test_perspective_roundtrip(self):
+        from src.image_verification.glyph_pairs import apply_perspective, perspective_coeffs
+
+        src = [(0, 0), (512, 0), (512, 512), (0, 512)]
+        dst = [(-10, -20), (530, -5), (520, 540), (-30, 515)]
+        forward = perspective_coeffs(src, dst)
+        back = perspective_coeffs(dst, src)
+        for point in [(100, 200), (256, 256), (400, 50)]:
+            x, y = apply_perspective(back, apply_perspective(forward, point))
+            self.assertAlmostEqual(x, point[0], places=6)
+            self.assertAlmostEqual(y, point[1], places=6)
+
+    def test_option_parsing_and_language(self):
+        from src.image_verification.evaluators import parse_options
+        from src.image_verification.model_evaluators import tesseract_lang
+
+        options = parse_options(["vlm_judge.model_name=Qwen/X", "vlm_judge.ocr_grounded=true", "ocr_tesseract.crop=false",
+                                 "probe.rank=16"])
+        self.assertEqual(options["vlm_judge"], {"model_name": "Qwen/X", "ocr_grounded": True})
+        self.assertEqual(options["ocr_tesseract"]["crop"], False)
+        self.assertEqual(options["probe"]["rank"], 16)
+        self.assertEqual(tesseract_lang("ಹಾಲು"), "kan")
+        self.assertEqual(tesseract_lang("दूध"), "hin")
+        self.assertEqual(tesseract_lang("பால்"), "tam")
+        self.assertEqual(tesseract_lang("દૂધ"), "guj")
+        self.assertEqual(tesseract_lang("DOODH"), "eng")
+
+    def test_exclusions_drop_mirrors(self):
+        pairs = [_fake_pair("a", "deva", "c1", "lookalike", "forward", "x", "y"),
+                 {**_fake_pair("a~m", "deva", "c1", "lookalike", "mirrored", "y", "x"), "base_pair_id": "a"},
+                 _fake_pair("b", "knda", "c1", "lookalike", "forward", "x", "y"),
+                 _fake_pair("c", "knda", "c2", "drop_akshara", "forward", "x", "y")]
+        kept = glyph_eval.apply_exclusions(pairs, {"pairs": ["a"], "error_types": {"knda": ["lookalike"]}})
+        self.assertEqual([p["pair_id"] for p in kept], ["c"])
+
+    def test_probe_learns_to_read(self):
+        import numpy as np
+
+        from src.image_verification.glyph_probe import cross_fit_scores
+
+        rng = np.random.default_rng(0)
+        dim, words = 16, {}
+        ids, cand_img, cand_txt, images, texts, pairs = [], [], [], [], [], []
+
+        def word_vec(word):
+            if word not in words:
+                words[word] = rng.normal(size=dim)
+            return words[word]
+
+        def unit(v):
+            return v / np.linalg.norm(v)
+
+        for c in range(12):
+            for script in ("latn", "deva"):
+                clean_w, bad_w = f"w{c}{script}", f"w{c}{script}x"
+                img_clean = unit(word_vec(clean_w) + rng.normal(scale=0.3, size=dim))
+                img_bad = unit(word_vec(bad_w) + rng.normal(scale=0.3, size=dim))
+                for direction, (want, good, bad) in (("forward", (clean_w, img_clean, img_bad)), ("mirrored", (bad_w, img_bad, img_clean))):
+                    pid = f"{c}-{script}-{direction}"
+                    texts.append(unit(word_vec(want)))
+                    for role, img in (("clean", good), ("corrupt", bad)):
+                        images.append(img)
+                        ids.append(f"{pid}:{role}")
+                        cand_img.append(len(images) - 1)
+                        cand_txt.append(len(texts) - 1)
+                    pairs.append({"pair_id": pid, "concept": f"c{c}", "script": script, "is_error": True,
+                                  "error_type": "lookalike", "direction": direction, "length_bin": "1-2"})
+        features = {"image_emb": np.array(images), "text_emb": np.array(texts), "candidate_ids": np.array(ids),
+                    "candidate_image": np.array(cand_img), "candidate_text": np.array(cand_txt)}
+        scores = cross_fit_scores(pairs, features, folds=4, rank=8, epochs=300)
+        result = glyph_eval.analyse(pairs, {"probe": scores}, samples=100)
+        self.assertGreater(result["evaluators"]["probe"]["overall"]["latn"]["reading"]["accuracy"], 0.8)
+        held = cross_fit_scores(pairs, features, folds=4, rank=8, epochs=300, holdout_script="deva")
+        self.assertTrue(all(cid.split("-")[1] == "deva" for cid in held))
+
+    def test_validation_aggregate(self):
+        import csv
+        import json as _json
+
+        from src.image_verification.glyph_validation import FIELDS, aggregate
+
+        key = [{"item_id": "i1", "pair_id": "p1", "role": "clean", "script": "deva", "error_type": "lookalike"},
+               {"item_id": "i2", "pair_id": "p1", "role": "corrupt", "script": "deva", "error_type": "lookalike"},
+               {"item_id": "i3", "pair_id": "p2", "role": "clean", "script": "deva", "error_type": "lookalike"},
+               {"item_id": "i4", "pair_id": "p2", "role": "corrupt", "script": "deva", "error_type": "lookalike"}]
+        answers = {"i1": "yes", "i2": "yes", "i3": "no", "i4": "no"}  # i2: readers missed the error; i3: clean judged wrong
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "key.json").write_text(_json.dumps(key))
+            with open(Path(tmp) / "sheet.csv", "w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=FIELDS)
+                writer.writeheader()
+                for item, verdict in answers.items():
+                    writer.writerow({"item_id": item, "matches_request": verdict, "legible": "yes"})
+            result = aggregate([Path(tmp) / "sheet.csv"], Path(tmp) / "key.json")
+        self.assertEqual(result["pairs"], ["p2"])
+        self.assertEqual(result["error_types"], {"deva": ["lookalike"]})
+        self.assertEqual(result["detection_rate"]["deva/lookalike"], 0.5)

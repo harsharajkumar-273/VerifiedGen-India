@@ -447,14 +447,35 @@ def missing_codepoints(text: str, path: Path) -> List[str]:
     return [f"U+{ord(c):04X}" for c in set(text) if not c.isspace() and c not in JOINERS and ord(c) not in cmap]
 
 
+def perspective_coeffs(output_pts: Sequence[Tuple[float, float]], input_pts: Sequence[Tuple[float, float]]) -> List[float]:
+    """Coefficients for ``Image.transform(PERSPECTIVE)``: maps output points to input points."""
+    import numpy as np
+
+    rows, rhs = [], []
+    for (xo, yo), (xi, yi) in zip(output_pts, input_pts):
+        rows.append([xo, yo, 1, 0, 0, 0, -xi * xo, -xi * yo])
+        rows.append([0, 0, 0, xo, yo, 1, -yi * xo, -yi * yo])
+        rhs += [xi, yi]
+    return [float(v) for v in np.linalg.solve(np.array(rows, dtype=float), np.array(rhs, dtype=float))]
+
+
+def apply_perspective(coeffs: Sequence[float], point: Tuple[float, float]) -> Tuple[float, float]:
+    a, b, c, d, e, f, g, h = coeffs
+    x, y = point
+    w = g * x + h * y + 1
+    return (a * x + b * y + c) / w, (d * x + e * y + f) / w
+
+
 class PairRenderer:
-    def __init__(self, font_dir: Path = FONT_DIR, size: int = 512, background_dir: Optional[Path] = None):
+    def __init__(self, font_dir: Path = FONT_DIR, size: int = 512, background_dir: Optional[Path] = None,
+                 perspective: bool = True):
         from PIL import features
 
         if not features.check("raqm"):
             raise RuntimeError("Pillow was built without libraqm; complex-script shaping is unavailable.")
         self.font_dir = Path(font_dir)
         self.size = size
+        self.perspective = perspective
         self.backgrounds = sorted(p for p in Path(background_dir).glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png"}) if background_dir else []
 
     @functools.lru_cache(maxsize=256)
@@ -500,6 +521,12 @@ class PairRenderer:
         top = int(self.size * rng.uniform(0.18, 0.5))
         noise_seed = rng.randrange(2 ** 31)
         blur = rng.uniform(0.0, 0.8)
+        # Mild perspective: push each image corner outwards by up to 7%, so the
+        # warped image never shows empty borders. Same warp on both sides.
+        outward = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+        corners = [(0, 0), (self.size, 0), (self.size, self.size), (0, self.size)]
+        warped = [(x + dx * rng.uniform(0, 0.07) * self.size, y + dy * rng.uniform(0, 0.07) * self.size)
+                  for (x, y), (dx, dy) in zip(corners, outward)] if self.perspective else corners
 
         clean_lang = SCRIPTS[pair.script].bcp47
         corrupt_lang = SCRIPTS[pair.script].bcp47 if pair.error_type not in ("script_swap", "transliterated") else (
@@ -526,6 +553,9 @@ class PairRenderer:
             draw.rectangle((left, top, left + board_w, top + board_h), fill=palette[0])
             draw.text((left + board_w / 2, top + board_h / 2), text, font=self._font(font_name, px, shaped),
                       fill=palette[1], anchor="mm", language=lang if shaped else None)
+            if warped != corners:
+                image = image.transform(image.size, Image.Transform.PERSPECTIVE,
+                                        perspective_coeffs(warped, corners), Image.Resampling.BICUBIC)
             if blur > 0.05:
                 image = image.filter(ImageFilter.GaussianBlur(blur))
             noise = np.random.default_rng(noise_seed).normal(0, 4.0, (self.size, self.size, 3))
@@ -538,8 +568,12 @@ class PairRenderer:
         a = np.asarray(Image.open(paths[0]), dtype=float)
         b = np.asarray(Image.open(paths[1]), dtype=float)
         pair.clean_image, pair.corrupt_image = paths[0].name, paths[1].name
+        board = [(left - 6, top - 6), (left + board_w + 6, top - 6), (left + board_w + 6, top + board_h + 6), (left - 6, top + board_h + 6)]
+        moved = [apply_perspective(perspective_coeffs(corners, warped), pt) for pt in board] if warped != corners else board
         pair.checks = {
             "font_px": px,
+            "text_box": [max(0, round(min(x for x, _ in moved))), max(0, round(min(y for _, y in moved))),
+                         min(self.size, round(max(x for x, _ in moved))), min(self.size, round(max(y for _, y in moved)))],
             "pixel_diff": round(float(np.abs(a - b).mean()), 4),
             "missing_glyphs_clean": missing_codepoints(pair.target_text, font_path(pair.clean_font, self.font_dir)),
             "missing_glyphs_corrupt": missing_codepoints(pair.corrupt_text, font_path(pair.corrupt_font, self.font_dir)),
@@ -572,7 +606,7 @@ def candidate_rows(pairs: Sequence[GlyphPair], image_subdir: str = "images") -> 
                 "metadata": {
                     "pair_id": pair.pair_id, "role": role, "script": pair.script, "direction": pair.direction,
                     "error_type": pair.error_type, "expected_text": [pair.target_text],
-                    "rendered_text": text,
+                    "rendered_text": text, "text_box": pair.checks.get("text_box"),
                 },
             })
     return rows

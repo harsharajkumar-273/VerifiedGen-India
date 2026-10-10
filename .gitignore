@@ -14,3 +14,4 @@ data/image_verification/annotation/
 # Downloaded fonts (SIL OFL; fetched by scripts/build_glyph_pairs.py fetch-fonts)
 data/fonts/
 outputs/glyph_pairs/
+data/tessdata/

@@ -149,12 +149,24 @@ class ClipScoreEvaluator(Evaluator):
         return float((image_embeds * text_embeds).sum())
 
 
+def _lazy(class_name: str) -> Callable[..., Evaluator]:
+    def build(**options) -> Evaluator:
+        from . import model_evaluators
+
+        return getattr(model_evaluators, class_name)(**options)
+    return build
+
+
 BUILTIN: Dict[str, Callable[..., Evaluator]] = {
     "random": RandomEvaluator,
     "verifiedgen": VerifierEvaluator,
     "image_stats": ImageStatsEvaluator,
     "ocr": OcrEvaluator,
     "clipscore": ClipScoreEvaluator,
+    "ocr_tesseract": _lazy("TesseractOcrEvaluator"),
+    "vlm_judge": _lazy("VlmJudgeEvaluator"),
+    "vqascore": _lazy("VQAScoreEvaluator"),
+    "openclip": _lazy("OpenClipScoreEvaluator"),
 }
 
 
@@ -162,6 +174,29 @@ def build_evaluator(name: str, **options) -> Evaluator:
     if name in BUILTIN:
         return BUILTIN[name](**options)
     return PrecomputedEvaluator(name)
+
+
+def parse_options(pairs: Iterable[str]) -> Dict[str, Dict[str, object]]:
+    """``["vlm_judge.model_name=Qwen/X", "ocr_tesseract.crop=false"]`` -> per-evaluator kwargs."""
+    options: Dict[str, Dict[str, object]] = {}
+    for pair in pairs:
+        key, _, raw = pair.partition("=")
+        evaluator, _, field = key.partition(".")
+        if not field:
+            raise ValueError(f"Option {pair!r} must look like evaluator.key=value")
+        value: object = raw
+        if raw.lower() in ("true", "false"):
+            value = raw.lower() == "true"
+        else:
+            try:
+                value = int(raw)
+            except ValueError:
+                try:
+                    value = float(raw)
+                except ValueError:
+                    pass
+        options.setdefault(evaluator, {})[field] = value
+    return options
 
 
 def load_score_files(paths: Iterable[str | Path]) -> Dict[str, Dict[str, float]]:
@@ -197,15 +232,23 @@ def main() -> None:
     parser.add_argument("--evaluators", nargs="+", default=["random", "image_stats", "verifiedgen", "ocr"],
                         help=f"Built-ins: {', '.join(BUILTIN)}")
     parser.add_argument("--clip-model", default="openai/clip-vit-large-patch14")
+    parser.add_argument("--option", action="append", default=[],
+                        help="Evaluator option, e.g. --option vlm_judge.model_name=Qwen/Qwen2.5-VL-7B-Instruct "
+                             "--option vlm_judge.ocr_grounded=true (repeatable)")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
     candidates: List[ImageCandidate] = load_manifest(args.manifest)
+    options = parse_options(args.option)
     for name in args.evaluators:
         if name not in BUILTIN:
             parser.error(f"Unknown evaluator {name!r}; precomputed scores go straight to run_study.py --scores.")
-        evaluator = build_evaluator(name, model_name=args.clip_model) if name == "clipscore" else build_evaluator(name)
-        count = write_score_file(Path(args.output_dir) / f"{name}.scores.jsonl", evaluator.name, evaluator.score_all(candidates))
-        print(f"[score] {name}: {count} scores")
+        kwargs = dict(options.get(name, {}))
+        if name == "clipscore":
+            kwargs.setdefault("model_name", args.clip_model)
+        evaluator = build_evaluator(name, **kwargs)
+        safe = evaluator.name.replace("/", "_").replace(":", "__")
+        count = write_score_file(Path(args.output_dir) / f"{safe}.scores.jsonl", evaluator.name, evaluator.score_all(candidates))
+        print(f"[score] {evaluator.name}: {count} scores")
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ The first grounded external-validation track uses AIKosh agriculture resources t
 
 ## Glyph minimal pairs: do evaluators read Indic scripts?
 
-The main experiment now in progress. Correct sign text is rendered with fonts next to an otherwise identical image containing one controlled error, such as a dropped matra, a lookalike letter, unshaped conjuncts, or a neighbouring script. Ground truth therefore comes from how each pair is built. Every pair is also scored with a *mirrored* prompt, so evaluators that ignore the prompt score exactly 0.5. The design is described in [`docs/GLYPH_PAIRS.md`](docs/GLYPH_PAIRS.md) and positioned against prior work in [`docs/LITERATURE_SURVEY.md`](docs/LITERATURE_SURVEY.md).
+The main experiment now in progress. Correct sign text is rendered with fonts next to an otherwise identical image containing one controlled error, such as a dropped matra, a lookalike letter, unshaped conjuncts, or a neighbouring script. Ground truth therefore comes from how each pair is built. Every pair is also scored with a *mirrored* prompt, so evaluators that ignore the prompt score exactly 0.5. The design is in [`docs/GLYPH_PAIRS.md`](docs/GLYPH_PAIRS.md), the pre-registration in [`docs/GLYPH_PROTOCOL.md`](docs/GLYPH_PROTOCOL.md), the GPU run in [`notebooks/glyph_pairs_gpu.ipynb`](notebooks/glyph_pairs_gpu.ipynb), and the positioning against prior work in [`docs/LITERATURE_SURVEY.md`](docs/LITERATURE_SURVEY.md).
 
 ```bash
 python3 scripts/build_glyph_pairs.py fetch-fonts
@@ -175,7 +175,10 @@ Study:
 - `src/image_verification/study.py`: pre-specified analysis and Markdown report
 - `src/image_verification/selection.py`: best-of-N selection analysis
 - `src/image_verification/glyph_pairs.py`: glyph minimal-pair generator (error types, shaping-aware rendering, prompt mirroring)
-- `src/image_verification/glyph_eval.py`: forward / mirrored / reading accuracy and the Latin-vs-Indic gap
+- `src/image_verification/glyph_eval.py`: forward / mirrored / reading accuracy, the Latin-vs-Indic gap, exclusions and power simulation
+- `src/image_verification/model_evaluators.py`: Tesseract OCR, VLM judge (local or API, optionally OCR-grounded), VQAScore, OpenCLIP
+- `src/image_verification/glyph_probe.py`: learned text-reading probe on frozen CLIP features (the trained fix)
+- `src/image_verification/glyph_validation.py`: blinded native-reader validation sheets and exclusions
 - `src/image_verification/stats.py`: AUROC, Spearman, calibrated false-accept rate, Krippendorff's alpha, cluster bootstrap, Holm correction
 
 Verifier and tooling:

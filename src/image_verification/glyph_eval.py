@@ -45,6 +45,44 @@ def load_pairs(path: str | Path) -> List[Dict]:
     return [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def apply_exclusions(pairs: Sequence[Dict], exclusions: Optional[Dict]) -> List[Dict]:
+    """Drop pairs (and their mirrors) and per-script error types that failed native-reader validation."""
+    if not exclusions:
+        return list(pairs)
+    bad_pairs = set(exclusions.get("pairs", []))
+    bad_types = {script: set(types) for script, types in exclusions.get("error_types", {}).items()}
+    return [p for p in pairs
+            if p["pair_id"] not in bad_pairs and p.get("base_pair_id") not in bad_pairs
+            and p["error_type"] not in bad_types.get(p["script"], set())]
+
+
+def simulate_power(n_concepts: int = 18, variants: int = 3, acc_latin: float = 0.85, acc_indic: float = 0.75,
+                   indic_scripts: int = 3, concept_sd: float = 0.5, sims: int = 200, bootstrap: int = 400,
+                   seed: int = 0) -> Dict:
+    """Power of the pooled reading-accuracy gap, with concept-level random effects on the logit scale."""
+    import random as _random
+
+    rng = _random.Random(seed)
+    logit = lambda p: math.log(p / (1 - p))
+    hits = 0
+    estimates = []
+    for sim in range(sims):
+        rows = []
+        for c in range(n_concepts):
+            shift = rng.gauss(0, concept_sd)
+            for script, base in [("latn", acc_latin)] + [(f"s{i}", acc_indic) for i in range(indic_scripts)]:
+                prob = 1 / (1 + math.exp(-(logit(base) + shift)))
+                for _ in range(len(SHARED_ERROR_TYPES) * variants * 2):
+                    rows.append({"concept": f"c{c}", "script": "latn" if script == "latn" else "deva",
+                                 "error_type": SHARED_ERROR_TYPES[0], "outcome": 1.0 if rng.random() < prob else 0.0})
+        result = _gap(rows, ["deva"], bootstrap, seed + sim)
+        estimates.append(result["estimate"])
+        hits += (result.get("ci_low") or 0) > 0
+    return {"power": hits / sims, "mean_gap": sum(estimates) / len(estimates), "n_pairs_per_sim": len(rows),
+            "settings": {"n_concepts": n_concepts, "variants": variants, "acc_latin": acc_latin, "acc_indic": acc_indic,
+                         "indic_scripts": indic_scripts, "concept_sd": concept_sd, "sims": sims}}
+
+
 def outcomes(pairs: Sequence[Dict], scores: Dict[str, float]) -> List[Dict]:
     """One row per pair that has both scores."""
     rows = []
@@ -210,8 +248,12 @@ def main() -> None:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--bootstrap", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--exclusions", help="exclusions.json from glyph_validation.py aggregate")
     args = parser.parse_args()
-    result = analyse(load_pairs(args.pairs), load_score_files(args.scores), args.bootstrap, args.seed)
+    exclusions = json.loads(Path(args.exclusions).read_text(encoding="utf-8")) if args.exclusions else None
+    pairs = apply_exclusions(load_pairs(args.pairs), exclusions)
+    result = analyse(pairs, load_score_files(args.scores), args.bootstrap, args.seed)
+    result["exclusions_applied"] = bool(exclusions)
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "glyph_results.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

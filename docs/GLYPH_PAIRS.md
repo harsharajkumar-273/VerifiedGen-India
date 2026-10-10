@@ -80,16 +80,33 @@ External evaluators write score files keyed by `candidate_id`, the same format t
 - the TextPecker model;
 - an Indic OCR plus CER.
 
+## Evaluators, fixes and validation
+
+| Tool | Command | Notes |
+|---|---|---|
+| Tesseract OCR | `score_images.py --evaluators ocr_tesseract` | Uses the language of the requested script; reads the sign crop by default (`--option ocr_tesseract.crop=false` for the full image); downloads `tessdata_best` on first use; caches readings |
+| CLIPScore | `--evaluators clipscore --clip-model …` | Any `transformers` CLIP checkpoint |
+| Multilingual CLIP | `--evaluators openclip` | OpenCLIP `xlm-roberta-large-ViT-H-14` by default |
+| VQAScore | `--evaluators vqascore` | Needs `pip install t2v_metrics` |
+| VLM judge | `--evaluators vlm_judge --option vlm_judge.model_name=Qwen/Qwen2.5-VL-7B-Instruct` | Score = P("yes"). `backend=openai` for any OpenAI-compatible endpoint with logprobs |
+| OCR-grounded judge (fix) | `… --option vlm_judge.ocr_grounded=true` | The judge is told what the OCR read |
+| Learned probe (fix) | `glyph_probe.py extract` then `score` | Low-rank bilinear head on frozen CLIP features, trained on pairs in both directions and cross-fitted by concept; `--holdout-script` tests transfer to an unseen script |
+| Native-reader validation | `glyph_validation.py export` / `aggregate` | Blinded per-language sheets; produces `exclusions.json` for `analyze_glyph_pairs.py --exclusions` |
+| Power | `scripts/glyph_power.py` | Simulated power of the pooled gap |
+
+`notebooks/glyph_pairs_gpu.ipynb` runs everything end to end on Colab, Kaggle or a lab GPU. The pre-registration is `docs/GLYPH_PROTOCOL.md`.
+
 ## Status
 
 Done:
-- [x] Generator, validity checks, prompt mirroring and analysis, with concept-clustered bootstrap and Holm correction across evaluators.
-- [x] Tests: segmentation, the error types, mirroring, rendering, and the analysis checked on synthetic "reader" and "ink" evaluators.
-- [x] Pilot run with `random` and `image_stats`. Both sit at 0.5 reading accuracy, as they should.
+- [x] Generator with perspective, sign-region boxes, validity checks and prompt mirroring.
+- [x] Analysis: reading, forward and mirrored accuracy, prior, gap with concept-clustered bootstrap and Holm correction, exclusions.
+- [x] Evaluator adapters (OCR, CLIP, OpenCLIP, VQAScore, VLM judge on local models or an API, OCR-grounded judge) and the learned probe.
+- [x] Native-reader validation kit, power simulation, GPU notebook, pre-registration draft.
+- [x] Pilot OCR results: `docs/GLYPH_PILOT_RESULTS.md`.
+- [x] Tests, including the analysis checked on synthetic "reader" and "ink" evaluators and the probe on synthetic features.
 
-Still to do:
-- [ ] Native-reader check: the lexicon, the lookalike tables, and about 50 rendered pairs per script, confirming each error type is visible and really an error.
-- [ ] Real evaluators on a GPU: CLIPScore (`openai/clip-vit-large-patch14` and a multilingual CLIP), VQAScore, 2–3 VLM judges, TextPecker-8B, and an Indic OCR.
-- [ ] Licensed real-photo backgrounds (`--background-dir`) as a robustness check against the plain synthetic backgrounds.
-- [ ] More scripts: Bengali, Telugu, Malayalam, Gujarati, Gurmukhi, Odia. The ISCII-aligned code handles them once fonts, lexicon entries and lookalike tables are added.
-- [ ] Pre-register the analysis, with reading accuracy and the pooled gap as primary, before scoring the real evaluators.
+Still to do (needs people or a GPU):
+- [ ] Native readers fill in the sheets from `glyph_validation.py export`: Hindi, Kannada, Tamil, plus English.
+- [ ] Freeze `docs/GLYPH_PROTOCOL.md`, then run the notebook with `VARIANTS = 3`.
+- [ ] Optional: licensed real-photo backgrounds; more scripts (Bengali, Telugu, Malayalam, Gujarati); hosted judges; TextPecker.
